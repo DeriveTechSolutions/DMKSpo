@@ -1,20 +1,3 @@
-/*
- * AFE44x0.c
- *
- *  Created on: Jul 27, 2018
- *      Author: DTS-sweety
- */
-
-/*
- * AFE44x0.c
- *
- * Provides AFE44x0 API
- *
- * Copyright (C) 2016 Texas Instruments Incorporated - http://www.ti.com/
- * ALL RIGHTS RESERVED
- *
-*/
-
 #include "device.h"
 #include "types.h"               //Basic Type declarations
 #include "AFE44x0.h"
@@ -28,7 +11,8 @@
 *           Global Variables                                                                                                                      *
 **************************************************************************************************************************************************/
 #define DELAY_COUNT 2
-extern void uart_data_send(unsigned int data);
+unsigned long int recv_data;
+
 unsigned long AFE44xx_Current_Register_Settings[36] = {
   CONTROL0_VAL,           //Reg0:CONTROL0: CONTROL REGISTER 0
   LED2STC_VAL,            //Reg1:REDSTARTCOUNT: SAMPLE RED START COUNT
@@ -68,9 +52,9 @@ unsigned long AFE44xx_Current_Register_Settings[36] = {
   (TX_REF_1 + RST_CLK_ON_PD_ALM_PIN_DISABLE + ADC_BYP_DISABLE + TXBRGMOD_H_BRIDGE + DIGOUT_TRISTATE_DISABLE + XTAL_ENABLE + EN_FAST_DIAG + PDN_TX_OFF + PDN_RX_OFF + PDN_AFE_OFF)                 //Reg35:CONTROL2: CONTROL REGISTER 2 //bit 9
 };
 
-/**********************************************************************************************************
-*           Variables for the SPI Interaction                                                             *
-**********************************************************************************************************/
+/***********************************************************************************************************
+*           Variables for the SPI Interaction                                                              *
+***********************************************************************************************************/
 
 
 /**********************************************************************************************************
@@ -78,20 +62,20 @@ unsigned long AFE44xx_Current_Register_Settings[36] = {
 **********************************************************************************************************/
 
 /**********************************************************************************************************
-* Init_AFE44xx_DRDY_Interrupt                                                                             *
+* Init_AFE44xx_DRDY_Interrupt                                                                                         *
 **********************************************************************************************************/
 void Init_AFE44xx_DRDY_Interrupt (void)
 {
-  P2DIR &= ~AFE_ADC_DRDY;                             //Input direction to P2.3
+  P2DIR &= ~AFE_ADC_DRDY;
   P2REN |= AFE_ADC_DRDY;                              // Enable P2.3 internal resistance
-  P2OUT |= AFE_ADC_DRDY;                              // Set P2.3 as pull-Up resistance
+  P2OUT |= AFE_ADC_DRDY;                                // Set P2.3 as pull-Up resistance
   P2IES |= AFE_ADC_DRDY;                              // P2.3 Hi/Lo edge
-  P2IFG &= ~AFE_ADC_DRDY;                             // P2.3 IFG cleared
-  P2IE &= ~AFE_ADC_DRDY;                              // P2.3 interrupt disabled
+  P2IFG &= ~AFE_ADC_DRDY;                               // P2.3 IFG cleared
+  P2IE &= ~AFE_ADC_DRDY;                                // P2.3 interrupt disabled
 }
 
 /**********************************************************************************************************
-* Enable_AFE44xx_DRDY_Interrupt                                                                           *
+* Enable_AFE44xx_DRDY_Interrupt                                                                                       *
 **********************************************************************************************************/
 void Enable_AFE44xx_DRDY_Interrupt (void)
 {
@@ -100,7 +84,7 @@ void Enable_AFE44xx_DRDY_Interrupt (void)
 }
 
 /**********************************************************************************************************
-* Disable_AFE44xx_DRDY_Interrupt                                                                          *
+* Disable_AFE44xx_DRDY_Interrupt                                                                                          *
 **********************************************************************************************************/
 void Disable_AFE44xx_DRDY_Interrupt (void)
 {
@@ -128,8 +112,8 @@ void Set_GPIO(void)
 
   P2SEL = 0x00;
   P2DIR &= BIT0;
-  P2OUT |= (BIT1 + BIT2 + BIT7);
-  P2DIR |= (BIT1 | BIT2 | BIT7);
+  P2OUT |= (BIT1 + BIT2+ BIT7);// BIT2
+  P2DIR |= (BIT1 | BIT2 | BIT7);// | BIT2
 }
 
 /**********************************************************************************************************
@@ -137,31 +121,30 @@ void Set_GPIO(void)
 **********************************************************************************************************/
 void Set_UCB1_SPI(void)
 {
-      P4SEL |= BIT1+BIT2+BIT3;              // Set SPI peripheral bits
-      P4DIR |= BIT0+BIT1+BIT3;          // STE, SCLK, and DOUT as output
-      P4DIR &= ~BIT2;                           // Din as input
-      P4OUT |=BIT0;             // Set STE high
-      UCB1CTL1 |= UCSWRST;                      // Enable SW reset
-      UCB1CTL0 |= UCMSB+UCCKPH+UCMST+UCSYNC;    // [b0]   1 -  Synchronous mode
-      // [b2-1] 00-  3-pin SPI
-      // [b3]   1 -  Master mode
-      // [b4]   0 - 8-bit data
-      // [b5]   1 - MSB first
-      // [b6]   0 - Clock polarity high.
-      // [b7]   1 - Clock phase - Data is captured on the first UCLK edge and changed on the following edge.
+  P4SEL |= BIT1+BIT2+BIT3;              // Set SPI peripheral bits
+  P4DIR |= BIT0+BIT1+BIT3;          // STE, SCLK, and DOUT as output
+  P4DIR &= ~BIT2;                           // Din as input
+  P4OUT |=BIT0;             // Set STE high
+  UCB1CTL1 |= UCSWRST;                      // Enable SW reset
+  UCB1CTL0 |= UCMSB+UCCKPH+UCMST+UCSYNC;    // [b0]   1 -  Synchronous mode
+  // [b2-1] 00-  3-pin SPI
+  // [b3]   1 -  Master mode
+  // [b4]   0 - 8-bit data
+  // [b5]   1 - MSB first
+  // [b6]   0 - Clock polarity high.
+  // [b7]   1 - Clock phase - Data is captured on the first UCLK edge and changed on the following edge.
 
-      UCB1CTL1 |= UCSSEL_2;                 // SMCLK
-      UCB1BR0 = 0x01;                             // 16 MHz
-      UCB1BR1 = 0;                                //
-      UCB1CTL1 &= ~UCSWRST;                     // Clear SW reset, resume operation
-      UCB1IE =0x0;
+  UCB1CTL1 |= UCSSEL_2;                 // SMCLK
+  UCB1BR0 = 0x08;                             // 16 MHz
+  UCB1BR1 = 0;                                //
+  UCB1CTL1 &= ~UCSWRST;                     // Clear SW reset, resume operation
+  UCB1IE =0x0;
 
-      //P4OUT &= ~BIT0;             // Set STE low
-
+  //P4OUT &= ~BIT0;             // Set STE low
 }
 
 /**********************************************************************************************************
-* Init_AFE44xx_Resource                                                                                   *
+* Init_AFE44xx_Resource                                                               *
 **********************************************************************************************************/
 
 void Init_AFE44xx_Resource(void)
@@ -179,34 +162,34 @@ void AFE44xx_Default_Reg_Init(void)
   Disable_AFE44x0_SPI_Read();
 
   AFE44x0_Reg_Write((unsigned char)PRPCOUNT, (unsigned long)PRP);
-  AFE44x0_Reg_Write((unsigned char)LED2STC, (unsigned long)LED2STC_VAL); //start of the sample LED2 signal
-  AFE44x0_Reg_Write((unsigned char)LED2ENDC, (unsigned long)LED2ENDC_VAL); //end of the sample LED2 signal
-  AFE44x0_Reg_Write((unsigned char)LED2LEDSTC, (unsigned long)LED2LEDSTC_VAL); //start of the LED2 (turn ON LED2)
-  AFE44x0_Reg_Write((unsigned char)LED2LEDENDC, (unsigned long)LED2LEDENDC_VAL); //end of the LED2 signal (turn OFF LED2)
-  AFE44x0_Reg_Write((unsigned char)ALED2STC, (unsigned long)ALED2STC_VAL); //start of the sample ambient LED2 signal
-  AFE44x0_Reg_Write((unsigned char)ALED2ENDC, (unsigned long)ALED2ENDC_VAL); // end of the sample ambient LED2 signal
-  AFE44x0_Reg_Write((unsigned char)LED1STC, (unsigned long)LED1STC_VAL); //start of the sample LED1 signal
-  AFE44x0_Reg_Write((unsigned char)LED1ENDC, (unsigned long)LED1ENDC_VAL); //end of the sample LED1 signal
-  AFE44x0_Reg_Write((unsigned char)LED1LEDSTC, (unsigned long)LED1LEDSTC_VAL); //start of the LED1 signal (turn ON LED1)
-  AFE44x0_Reg_Write((unsigned char)LED1LEDENDC, (unsigned long)LED1LEDENDC_VAL); //end of the LED1 signal (turn OFF LED1)
-  AFE44x0_Reg_Write((unsigned char)ALED1STC, (unsigned long)ALED1STC_VAL); //start of the sample ambient LED1 signal
-  AFE44x0_Reg_Write((unsigned char)ALED1ENDC, (unsigned long)ALED1ENDC_VAL); //end of the sample ambient LED1 signal
-  AFE44x0_Reg_Write((unsigned char)LED2CONVST, (unsigned long)LED2CONVST_VAL); //start of the LED2 conversion signal
-  AFE44x0_Reg_Write((unsigned char)LED2CONVEND, (unsigned long)LED2CONVEND_VAL); //end of LED2 conversion signal
-  AFE44x0_Reg_Write((unsigned char)ALED2CONVST, (unsigned long)ALED2CONVST_VAL); //start of the LED2 ambient conversion signal
-  AFE44x0_Reg_Write((unsigned char)ALED2CONVEND, (unsigned long)ALED2CONVEND_VAL); //end of the LED2 ambient conversion signal
-  AFE44x0_Reg_Write((unsigned char)LED1CONVST, (unsigned long)LED1CONVST_VAL); //start LED1 conversion signal
-  AFE44x0_Reg_Write((unsigned char)LED1CONVEND, (unsigned long)LED1CONVEND_VAL); //end LED1 conversion signal
-  AFE44x0_Reg_Write((unsigned char)ALED1CONVST, (unsigned long)ALED1CONVST_VAL); //start LED1 ambient conversion signal
-  AFE44x0_Reg_Write((unsigned char)ALED1CONVEND, (unsigned long)ALED1CONVEND_VAL); //end LED1 ambient conversion signal
-  AFE44x0_Reg_Write((unsigned char)ADCRSTSTCT0, (unsigned long)ADCRSTSTCT0_VAL); //start of the ADC reset conversion signal (reset default=0)
-  AFE44x0_Reg_Write((unsigned char)ADCRSTENDCT0, (unsigned long)ADCRSTENDCT0_VAL); //end of the ADC reset conversion signal
-  AFE44x0_Reg_Write((unsigned char)ADCRSTSTCT1, (unsigned long)ADCRSTSTCT1_VAL); //start of the ADC reset conversion
-  AFE44x0_Reg_Write((unsigned char)ADCRSTENDCT1, (unsigned long)ADCRSTENDCT1_VAL); //end of ADC reset conversion
-  AFE44x0_Reg_Write((unsigned char)ADCRSTSTCT2, (unsigned long)ADCRSTSTCT2_VAL); //start of ADC reset conversion
-  AFE44x0_Reg_Write((unsigned char)ADCRSTENDCT2, (unsigned long)ADCRSTENDCT2_VAL); //end of ADC reset conversion
-  AFE44x0_Reg_Write((unsigned char)ADCRSTSTCT3, (unsigned long)ADCRSTSTCT3_VAL); //start of ADC reset conversion
-  AFE44x0_Reg_Write((unsigned char)ADCRSTENDCT3, (unsigned long)ADCRSTENDCT3_VAL); //end of ADC reset conversion
+  AFE44x0_Reg_Write((unsigned char)LED2STC, (unsigned long)LED2STC_VAL);
+  AFE44x0_Reg_Write((unsigned char)LED2ENDC,(unsigned long)LED2ENDC_VAL);//(unsigned long)LED2ENDC_VAL,(unsigned char)LED2ENDC
+  AFE44x0_Reg_Write((unsigned char)LED2LEDSTC, (unsigned long)LED2LEDSTC_VAL);//(unsigned long)LED2LEDSTC_VAL
+  AFE44x0_Reg_Write((unsigned char)LED2LEDENDC,(unsigned long)LED2LEDENDC_VAL); //(unsigned long)LED2LEDENDC_VAL
+  AFE44x0_Reg_Write((unsigned char)ALED2STC, (unsigned long)ALED2STC_VAL);
+  AFE44x0_Reg_Write((unsigned char)ALED2ENDC, (unsigned long)ALED2ENDC_VAL);
+  AFE44x0_Reg_Write((unsigned char)LED1STC, (unsigned long)LED1STC_VAL);
+  AFE44x0_Reg_Write((unsigned char)LED1ENDC, (unsigned long)LED1ENDC_VAL);
+  AFE44x0_Reg_Write((unsigned char)LED1LEDSTC, (unsigned long)LED1LEDSTC_VAL);
+  AFE44x0_Reg_Write((unsigned char)LED1LEDENDC, (unsigned long)LED1LEDENDC_VAL);
+  AFE44x0_Reg_Write((unsigned char)ALED1STC, (unsigned long)ALED1STC_VAL);
+  AFE44x0_Reg_Write((unsigned char)ALED1ENDC, (unsigned long)ALED1ENDC_VAL);
+  AFE44x0_Reg_Write((unsigned char)LED2CONVST, (unsigned long)LED2CONVST_VAL);
+  AFE44x0_Reg_Write((unsigned char)LED2CONVEND, (unsigned long)LED2CONVEND_VAL);
+  AFE44x0_Reg_Write((unsigned char)ALED2CONVST, (unsigned long)ALED2CONVST_VAL);
+  AFE44x0_Reg_Write((unsigned char)ALED2CONVEND, (unsigned long)ALED2CONVEND_VAL);
+  AFE44x0_Reg_Write((unsigned char)LED1CONVST, (unsigned long)LED1CONVST_VAL);
+  AFE44x0_Reg_Write((unsigned char)LED1CONVEND, (unsigned long)LED1CONVEND_VAL);
+  AFE44x0_Reg_Write((unsigned char)ALED1CONVST, (unsigned long)ALED1CONVST_VAL);
+  AFE44x0_Reg_Write((unsigned char)ALED1CONVEND, (unsigned long)ALED1CONVEND_VAL);
+  AFE44x0_Reg_Write((unsigned char)ADCRSTSTCT0, (unsigned long)ADCRSTSTCT0_VAL);
+  AFE44x0_Reg_Write((unsigned char)ADCRSTENDCT0, (unsigned long)ADCRSTENDCT0_VAL);
+  AFE44x0_Reg_Write((unsigned char)ADCRSTSTCT1, (unsigned long)ADCRSTSTCT1_VAL);
+  AFE44x0_Reg_Write((unsigned char)ADCRSTENDCT1, (unsigned long)ADCRSTENDCT1_VAL);
+  AFE44x0_Reg_Write((unsigned char)ADCRSTSTCT2, (unsigned long)ADCRSTSTCT2_VAL);
+  AFE44x0_Reg_Write((unsigned char)ADCRSTENDCT2, (unsigned long)ADCRSTENDCT2_VAL);
+  AFE44x0_Reg_Write((unsigned char)ADCRSTSTCT3, (unsigned long)ADCRSTSTCT3_VAL);
+  AFE44x0_Reg_Write((unsigned char)ADCRSTENDCT3, (unsigned long)ADCRSTENDCT3_VAL);
 
   AFE44x0_Reg_Write((unsigned char)CONTROL0, AFE44xx_Current_Register_Settings[0]);            //0x00
   AFE44x0_Reg_Write((unsigned char)CONTROL2, AFE44xx_Current_Register_Settings[35]);           //0x23
@@ -217,9 +200,84 @@ void AFE44xx_Default_Reg_Init(void)
 
   Enable_AFE44x0_SPI_Read();
 }
+void afe44xxInit (void)
+{ Disable_AFE44x0_SPI_Read();
+  //  Serial.println("afe44xx Initialization Starts");
+      AFE44x0_Reg_Write(CONTROL0,0x000000);
 
+      AFE44x0_Reg_Write(CONTROL0,0x000008);
+
+      AFE44x0_Reg_Write(TIAGAIN,0x000000); // CF = 5pF, RF = 500kR
+      AFE44x0_Reg_Write(TIA_AMB_GAIN,0x000001);
+
+      AFE44x0_Reg_Write(LEDCNTRL,0x001414);
+      AFE44x0_Reg_Write(CONTROL2,0x000000); // LED_RANGE=100mA, LED=50mA
+      AFE44x0_Reg_Write(CONTROL1,0x010707); // Timers ON, average 3 samples
+
+      AFE44x0_Reg_Write(PRPCOUNT, 0X001F3F);                           //   7999
+
+    AFE44x0_Reg_Write(LED2STC, 0X001770);//0X001770                       //6000
+
+     AFE44x0_Reg_Write(LED2ENDC,0X001F3E);//0X001F3E                       //7998
+
+     AFE44x0_Reg_Write(LED2LEDSTC,0X001770);//0X001770                     //6000
+
+     AFE44x0_Reg_Write(LED2LEDENDC,0X001F3F);//0X001F3F                    //7998
+
+     AFE44x0_Reg_Write(ALED2STC, 0X000000);                                //0000
+
+     AFE44x0_Reg_Write(ALED2ENDC, 0X0007CE);                              //1998
+
+     AFE44x0_Reg_Write(LED2CONVST,0X000002);                               //2
+
+     AFE44x0_Reg_Write(LED2CONVEND, 0X0007CF);                            //1999
+
+     AFE44x0_Reg_Write(ALED2CONVST, 0X0007D2);                           //2002
+
+     AFE44x0_Reg_Write(ALED2CONVEND,0X000F9F);                           //3999
+
+     AFE44x0_Reg_Write(LED1STC, 0X0007D0);//0X0007D0                    //2000
+
+     AFE44x0_Reg_Write(LED1ENDC, 0X000F9E);// 0X000F9E                   //3998
+
+     AFE44x0_Reg_Write(LED1LEDSTC,  0X0007D0);//0X0007D0                  //2000
+
+     AFE44x0_Reg_Write(LED1LEDENDC,0X000F9F);// 0X000F9F               //3999
+
+       AFE44x0_Reg_Write(ALED1STC, 0X000FA0);                            //4000
+
+       AFE44x0_Reg_Write(ALED1ENDC, 0X00176E);                      //5998
+
+       AFE44x0_Reg_Write(LED1CONVST, 0X000FA2);                      //4002
+
+       AFE44x0_Reg_Write(LED1CONVEND, 0X00176F);                     //5999
+
+       AFE44x0_Reg_Write(ALED1CONVST, 0X001772);                       //6002
+
+       AFE44x0_Reg_Write(ALED1CONVEND, 0X001F3F);                      //7999
+
+     AFE44x0_Reg_Write(ADCRSTSTCT0, 0X000000);                             //0000
+
+     AFE44x0_Reg_Write(ADCRSTENDCT0,0X000000);                          //0000
+
+     AFE44x0_Reg_Write(ADCRSTSTCT1, 0X0007D0);                            //2000
+
+     AFE44x0_Reg_Write(ADCRSTENDCT1, 0X0007D0);                               //2000
+
+     AFE44x0_Reg_Write(ADCRSTSTCT2, 0X000FA0);                               //4000
+
+     AFE44x0_Reg_Write(ADCRSTENDCT2, 0X000FA0);                           //4000
+
+     AFE44x0_Reg_Write(ADCRSTSTCT3, 0X001770);                              //6000
+
+     AFE44x0_Reg_Write(ADCRSTENDCT3, 0X001770);                            //6000
+
+    __delay_cycles(1000);
+    Enable_AFE44x0_SPI_Read();
+   // Serial.println("afe44xx Initialization Done");
+}
 /**********************************************************************************************************
-*           AFE44xx_Read_All_Regs                                                                         *
+*           AFE44xx_Read_All_Regs                                                             *
 **********************************************************************************************************/
 
 void AFE44xx_Read_All_Regs(unsigned long AFE44xxeg_buf[])
@@ -227,13 +285,12 @@ void AFE44xx_Read_All_Regs(unsigned long AFE44xxeg_buf[])
   unsigned char Regs_i;
   for ( Regs_i = 0; Regs_i < 50; Regs_i++)
   {
-    AFE44xxeg_buf[Regs_i] = AFE44x0_Reg_Read(Regs_i);
-    uart_data_send(AFE44xxeg_buf[Regs_i]);
+    AFE44xxeg_buf[Regs_i] = AFE44xx_Reg_Read(Regs_i);
   }
 }
-/**********************************************************************************************************/
-/***********************************************************************************************************
-*           AFE44xx_PowerOn_Init                                                                           *
+/*********************************************************************************************************/
+/**********************************************************************************************************
+*           AFE44xx_PowerOn_Init                                                                          *
 ***********************************************************************************************************/
 void AFE44xx_PowerOn_Init(void)
 {
@@ -246,61 +303,57 @@ void AFE44xx_PowerOn_Init(void)
     for ( Init_i =0; Init_i < 20000; Init_i++);
   }
   Init_AFE44xx_DRDY_Interrupt();
-  AFE44xx_Default_Reg_Init();
+// AFE44xx_Default_Reg_Init();
+afe44xxInit();
 }
 
-/***********************************************************************************************************
-*           AFE44x0_Reg_Write                                                                              *
+/**********************************************************************************************************
+*           AFE44x0_Reg_Write                                             *
 ***********************************************************************************************************/
 void AFE44x0_Reg_Write (unsigned char reg_address, unsigned long data)
 {
   unsigned char dummy_rx;
 
-  P4OUT &= ~BIT0;                                             //  SET LOW FOR START OF TRANSMISSION.
-
+  P4OUT&= ~0x01;   //  SEN LOW FOR TRANSMISSION.
   // Loop unrolling for machine cycle optimization
-  UCB1TXBUF = reg_address;                                    // Send the first byte to the TX Buffer: Address of register
-  while ( (UCB1STAT & UCBUSY) );                              // USCI_B1 TX buffer ready?
-  dummy_rx = UCB1RXBUF;                                       // Dummy Read Rx buf
-  UCB1TXBUF = (unsigned char)(data >>16);                     // Send the second byte to the TX Buffer: Data[23:16]
-  while ( (UCB1STAT & UCBUSY) );                              // USCI_B1 TX buffer ready?
-  dummy_rx = UCB1RXBUF;                                       // Dummy Read Rx buf
+  UCB1TXBUF = reg_address;                    // Send the first byte to the TX Buffer: Address of register
+  while ( (UCB1STAT & UCBUSY) );        // USCI_B1 TX buffer ready?
+  dummy_rx = UCB1RXBUF;         // Dummy Read Rx buf
+  UCB1TXBUF = (unsigned char)(data >>16);     // Send the second byte to the TX Buffer: Data[23:16]
+  while ( (UCB1STAT & UCBUSY) );        // USCI_B1 TX buffer ready?
+  dummy_rx = UCB1RXBUF;         // Dummy Read Rx buf
   UCB1TXBUF = (unsigned char)(((data & 0x00FFFF) >>8));       // Send the third byte to the TX Buffer: Data[15:8]
-  while ( (UCB1STAT & UCBUSY) );                              // USCI_B1 TX buffer ready?
-  dummy_rx = UCB1RXBUF;                                       // Dummy Read Rx buf
+  while ( (UCB1STAT & UCBUSY) );                        // USCI_B1 TX buffer ready?
+  dummy_rx = UCB1RXBUF;                         // Dummy Read Rx buf
   UCB1TXBUF = (unsigned char)(((data & 0x0000FF)));           // Send the first byte to the TX Buffer: Data[7:0]
-  while ( (UCB1STAT & UCBUSY) );                              // USCI_B1 TX buffer ready?
-  dummy_rx = UCB1RXBUF;                                       // Dummy Read Rx buf
-
-  P4OUT |= BIT0;                                              // SEN HIGH
+  while ( (UCB1STAT & UCBUSY) );                        // USCI_B1 TX buffer ready?
+  dummy_rx = UCB1RXBUF;                         // Dummy Read Rx buf
+  P4OUT|=0x01;  // SEN HIGH
 }
 
-/***********************************************************************************************************
-*           AFE44x0_Reg_Read                                                                               *
+/**********************************************************************************************************
+*           AFE44x0_Reg_Read                                          *
 ***********************************************************************************************************/
 unsigned long AFE44x0_Reg_Read(unsigned char Reg_address)
 {
   unsigned char SPI_Rx_buf[4];
   unsigned long retVal;
   retVal = 0;
-  P4OUT &= ~BIT0;                       //  SEN LOW FOR TRANSMISSION.
-
+  P4OUT&= ~0x01;   //  SEN LOW FOR TRANSMISSION.
   // Loop unrolling for machine cycle optimization
-  UCB1TXBUF = Reg_address;              // Send the first byte to the TX Buffer: Address of register
+  UCB1TXBUF = Reg_address;                    // Send the first byte to the TX Buffer: Address of register
   while ( (UCB1STAT & UCBUSY) );        // USCI_B1 TX buffer ready?
   SPI_Rx_buf[0] = UCB1RXBUF;            // Read Rx buf
-  UCB1TXBUF = 0;                        // Send the second byte to the TX Buffer: dummy data
+  UCB1TXBUF = 0;                              // Send the second byte to the TX Buffer: dummy data
   while ( (UCB1STAT & UCBUSY) );        // USCI_B1 TX buffer ready?
   SPI_Rx_buf[1] = UCB1RXBUF;            // Read Rx buf: Data[23:16]
-  UCB1TXBUF = 0;                        // Send the third byte to the TX Buffer: dummy data
+  UCB1TXBUF = 0;                              // Send the third byte to the TX Buffer: dummy data
   while ( (UCB1STAT & UCBUSY) );        // USCI_B1 TX buffer ready?
   SPI_Rx_buf[2] = UCB1RXBUF;            // Read Rx buf: Data[15:8]
-  UCB1TXBUF = 0;                        // Send the first byte to the TX Buffer: dummy data
+  UCB1TXBUF = 0;                              // Send the first byte to the TX Buffer: dummy data
   while ( (UCB1STAT & UCBUSY) );        // USCI_B1 TX buffer ready?
   SPI_Rx_buf[3] = UCB1RXBUF;            // Read Rx buf: Data[7:0]
-
-  P4OUT |= BIT0;                        // set HIGH at end of transmission
-
+  P4OUT|=0x01;  // set HIGH at end of transmission
   retVal = SPI_Rx_buf[1];
   retVal = (retVal << 8) | SPI_Rx_buf[2];
   retVal = (retVal << 8) | SPI_Rx_buf[3];
@@ -309,56 +362,51 @@ unsigned long AFE44x0_Reg_Read(unsigned char Reg_address)
 }
 
 /**********************************************************************************************************
-*           Enable_AFE44x0_SPI_Read                                                                       *
+*           Enable_AFE44x0_SPI_Read                                               *
 **********************************************************************************************************/
 void Enable_AFE44x0_SPI_Read (void)
 {
   unsigned char dummy_rx;
   //Set Control0 - Enable SPI Read bit
-  P4OUT &= ~BIT0;                       // CS LOW for start of transmission.
-
+  P4OUT&= ~0x01;                        // CS LOW for start of transmission.
   // Loop unrolling for machine cycle optimization
   UCB1TXBUF = 0;                        // Send the first byte to the TX Buffer: Address of register
-  while ( (UCB1STAT & UCBUSY) );        // USCI_B1 TX buffer ready?
-  dummy_rx = UCB1RXBUF;                 // Dummy Read Rx buff
+  while ( (UCB1STAT & UCBUSY) );    // USCI_B1 TX buffer ready?
+  dummy_rx = UCB1RXBUF;         // Dummy Read Rx buf
   UCB1TXBUF = 0;                        // Send the second byte to the TX Buffer: Data[23:16]
-  while ( (UCB1STAT & UCBUSY) );        // USCI_B1 TX buffer ready?
-  dummy_rx = UCB1RXBUF;                 // Dummy Read Rx buff
+  while ( (UCB1STAT & UCBUSY) );    // USCI_B1 TX buffer ready?
+  dummy_rx = UCB1RXBUF;         // Dummy Read Rx buf
   UCB1TXBUF = 0;                        // Send the third byte to the TX Buffer: Data[15:8]
-  while ( (UCB1STAT & UCBUSY) );        // USCI_B1 TX buffer ready?
-  dummy_rx = UCB1RXBUF;                 // Dummy Read Rx buff
+  while ( (UCB1STAT & UCBUSY) );    // USCI_B1 TX buffer ready?
+  dummy_rx = UCB1RXBUF;         // Dummy Read Rx buf
   UCB1TXBUF = 1;                        // Send the first byte to the TX Buffer: Data[7:0]
-  while ( (UCB1STAT & UCBUSY) );        // USCI_B1 TX buffer ready?
-  dummy_rx = UCB1RXBUF;                 // Dummy Read Rx buff
-
-  P4OUT |= BIT0;                        // CS High for end of transmission
+  while ( (UCB1STAT & UCBUSY) );    // USCI_B1 TX buffer ready?
+  dummy_rx = UCB1RXBUF;         // Dummy Read Rx buf
+  P4OUT|=0x01;                          // CS High for end of transmission
 }
 
 /**********************************************************************************************************
-*           Disable_AFE44x0_SPI_Read
-*                                                                                 *
+*           Disable_AFE44x0_SPI_Read                                              *
 **********************************************************************************************************/
 void Disable_AFE44x0_SPI_Read (void)
 {
   unsigned char dummy_rx;
   //Set Control0 - Disable SPI Read bit
-  P4OUT &= ~BIT0;                       // CS LOW for start of transmission.
-
+  P4OUT&= ~0x01;                        // CS LOW for start of transmission.
   // Loop unrolling for machine cycle optimization
   UCB1TXBUF = 0;                        // Send the first byte to the TX Buffer: Address of register
-  while ( (UCB1STAT & UCBUSY) );        // USCI_B1 TX buffer ready?
-  dummy_rx = UCB1RXBUF;                 // Dummy Read Rx buf
+  while ( (UCB1STAT & UCBUSY) );    // USCI_B1 TX buffer ready?
+  dummy_rx = UCB1RXBUF;         // Dummy Read Rx buf
   UCB1TXBUF = 0;                        // Send the second byte to the TX Buffer: Data[23:16]
-  while ( (UCB1STAT & UCBUSY) );        // USCI_B1 TX buffer ready?
-  dummy_rx = UCB1RXBUF;                 // Dummy Read Rx buf
+  while ( (UCB1STAT & UCBUSY) );    // USCI_B1 TX buffer ready?
+  dummy_rx = UCB1RXBUF;         // Dummy Read Rx buf
   UCB1TXBUF = 0;                        // Send the third byte to the TX Buffer: Data[15:8]
-  while ( (UCB1STAT & UCBUSY) );        // USCI_B1 TX buffer ready?
-  dummy_rx = UCB1RXBUF;                 // Dummy Read Rx buf
+  while ( (UCB1STAT & UCBUSY) );    // USCI_B1 TX buffer ready?
+  dummy_rx = UCB1RXBUF;         // Dummy Read Rx buf
   UCB1TXBUF = 0;                        // Send the first byte to the TX Buffer: Data[7:0]
-  while ( (UCB1STAT & UCBUSY) );        // USCI_B1 TX buffer ready?
-  dummy_rx = UCB1RXBUF;                 // Dummy Read Rx buf
-
-  P4OUT |= BIT0;                        // CS High for end of transmission
+  while ( (UCB1STAT & UCBUSY) );    // USCI_B1 TX buffer ready?
+  dummy_rx = UCB1RXBUF;         // Dummy Read Rx buf
+  P4OUT|=0x01;                          // CS High for end of transmission
 }
 
 /*********************************************************************************************************/
@@ -368,23 +416,13 @@ void Disable_AFE44x0_SPI_Read (void)
 #pragma vector=USCI_B1_VECTOR
 __interrupt void USCI_B1_ISR(void)
 {
-  switch(UCB1IV)                            //USCI interrupt vector value
+  switch(UCB1IV)
   {
-  case 0:break;                             // Vector 0 - no interrupt pending
-  case 2:break;                             // Vector 2 - (RXIFG) Interrupt Source: Data received; Interrupt Flag: UCRXIFG;
-  case 4:break;                             // Vector 4 - (TXIFG) Interrupt Source: Transmit buffer empty; Interrupt Flag: UCTXIFG;
+  case 0:break;                             // Vector 0 - no interrupt
+  case 2:break;                             // Vector 2 - RXIFG
+  case 4:break;                             // Vector 4 - TXIFG
   default: break;
   }
 }
 // End of file
-
-/*
- * The eUSCI initiates data transfer when data is moved to the transmit data buffer UCxTXBUF. The UCxTXBUF data is moved to the transmit (TX)
- * shift register when the TX shift register is empty, initiating data transfer on UCxSIMO starting with either the MSB or LSB, depending on
- * the UCMSB setting. Data on UCxSOMI is shifted into the receive shift register on the opposite clock edge. When the character is received,
- * the receive data is moved from the receive (RX) shift register to the received data buffer UCxRXBUF and the receive interrupt flag UCRXIFG
- * is set, indicating the RX/TX operation is complete. A set transmit interrupt flag, UCTXIFG, indicates that data has moved from UCxTXBUF
- * to the TX shift register and UCxTXBUF is ready for new data. It does not indicate RX/TX completion. To receive data into the eUSCI in
- * master mode, data must be written to UCxTXBUF, because receive and transmit operations operate concurrently.
- */
 

@@ -1,13 +1,14 @@
-
 /*
  * AFE44x0.h
  *
  * Provides AFE44x0 API
  *
- * Copyright (C) 2016 Texas Instruments Incorporated - http://www.ti.com/
- * ALL RIGHTS RESERVED
+ * Copyright (C) 2016 Texas Instruments Incorporated - http://www.ti.com/ 
+ * ALL RIGHTS RESERVED  
  *
 */
+#ifndef _AFE44x0_H_
+#define _AFE44x0_H_
 
 /*----------------------------------------------------------------------------+
 | Constant Definition                                                         |
@@ -21,9 +22,9 @@
 | Bits Definition                                                         |
 +----------------------------------------------------------------------------*/
 
-#define AFE_RESETZ      BIT1
+#define AFE_RESETZ      BIT3
 #define AFE_PDNZ        BIT2
-#define AFE_ADC_DRDY    BIT3
+#define AFE_ADC_DRDY    BIT6
 #define AFE_PD_ALM      BIT4
 #define AFE_LED_ALM     BIT5
 #define AFE_DIAG_END    BIT7
@@ -159,7 +160,7 @@
 
 #define    FLTRCNRSEL_500HZ            0x000000ul        //Filter corner selection
 #define    FLTRCNRSEL_1000HZ           0x008000ul        //Filter corner selection
-//configures the ambient light cancellation amplifier gain, cancellation current, and filter corner frequency
+
 #define    AMBDAC_0uA                  0x000000ul        //Ambient DAC value
 #define    AMBDAC_1uA                  0x010000ul        //Ambient DAC value
 #define    AMBDAC_2uA                  0x020000ul        //Ambient DAC value
@@ -172,7 +173,6 @@
 #define    AMBDAC_9uA                  0x090000ul        //Ambient DAC value
 #define    AMBDAC_10uA                 0x0A0000ul        //Ambient DAC value
 
-//LED drive current (BIT 17: 0 for 50 mA & 1 for LED_OFF)
 #define LEDCNTRL        0x22
 #define    LEDCNTRL_VAL                (0x011414ul)
 #define    LED2_CURRENT                (0x0000FFul)        //Program LED current for LED2 signal
@@ -183,30 +183,29 @@
 #define    LED_RANGE_3                 (0x030000ul)        //Full-Scale LED current range   // OFF   / OFF   / OFF   / OFF
 
 
-//controls the LED transmitter, crystal, and the AFE, transmitter, and receiver power modes
+
 #define CONTROL2        0x23
 #define CONTROL2_VAL                    (0x000000ul)
-//BIT 0 (Entire AFE Power-down mode)
 #define PDN_AFE_OFF                     (0x000000ul)        //AFE power-down (Powered on)
-#define PDN_AFE_ON                      (0x000001ul)        //AFE power-down (Powered off)(BIT_0=PDNAFE=1)
-//BIT 1 (BIT_1=1, then, Only the Rx module is powered down), Rx-2.0 to 3.6V
+#define PDN_AFE_ON                      (0x000001ul)        //AFE power-down (Powered off)
+
 #define PDN_RX_OFF                      (0x000000ul)        //Rx power-down (Powered on)
-#define PDN_RX_ON                       (0x000002ul)        //Rx power-down (Powered off)(BIT_1=PDNRX=1)
-//BIT 2 (BIT_2=1, then, Only the Tx module is powered down), Tx-3.0V to 5.25V
+#define PDN_RX_ON                       (0x000002ul)        //Rx power-down (Powered off)
+
 #define PDN_TX_OFF                      (0x000000ul)        //Tx power-down (Powered on)
-#define PDN_TX_ON                       (0x000004ul)        //Tx power-down (Powered off)(BIT_2=PDNTX=1)
+#define PDN_TX_ON                       (0x000004ul)        //Tx power-down (Powered off)
 
 #define EN_FAST_DIAG                    (0x000000ul)        //Fast diagnostics mode enable
 #define EN_SLOW_DIAG                    (0x000100ul)        //Slow diagnostics mode enable
-//BIT 9 of CONTROL2
+
 #define XTAL_ENABLE                     (0x000000ul)        //The crystal module is enabled
-#define XTAL_DISABLE                    (0x000200ul)        //The crystal module is disabled,8MHz is applied at Xin(BIT_9=XTALDIS=1)
-//BIT 10 of CONTROL2 reg
+#define XTAL_DISABLE                    (0x000200ul)        //The crystal module is disabled
+
 #define DIGOUT_TRISTATE_DISABLE         (0x000000ul)        //Digital tristate disabled
-#define DIGOUT_TRISTATE_ENABLE          (0x000400ul)        //Digital tristate enabled(BIT_10=DIGOUT_TRISTATE=1)
-//BIT 11 (BIT_11=1, then, LED driver is configured as a push-pull)
+#define DIGOUT_TRISTATE_ENABLE          (0x000400ul)        //Digital tristate enabled
+
 #define TXBRGMOD_H_BRIDGE               (0x000000ul)        //Tx bridge mode
-#define TXBRGMOD_PUSH_PULL              (0x000800ul)        //Tx bridge mode(BIT_11=TXBRGMOD=1)
+#define TXBRGMOD_PUSH_PULL              (0x000800ul)        //Tx bridge mode
 
 #define ADC_BYP_DISABLE                 (0x000000ul)        //ADC bypass mode enable
 #define ADC_BYP_ENABLE                  (0x008000ul)        //ADC bypass mode enable
@@ -225,17 +224,17 @@
 #define    ALMPINCLKEN                  (0x000080ul)        //Alarm pin clock enable (Enables CLKALMPIN)
 
 // Read only registers
-#define LED2VAL         0x2A                            //digital value of the latest LED2 sample converted by the ADC
-#define ALED2VAL        0x2B                            //digital value of the latest LED2 ambient sample converted by the ADC
-#define LED1VAL         0x2C                            //digital value of the latest LED1 sample converted by the ADC
-#define ALED1VAL        0x2D                            //digital value of the latest LED1 ambient sample converted by the ADC
-#define LED2_ALED2VAL   0x2E                            //digital value of the LED2 sample after the LED2 ambient is subtracted
-#define LED1_ALED1VAL   0x2F                            //digital value of the LED1 sample after the LED1 ambient is subtracted
+#define LED2VAL         0x2A
+#define ALED2VAL        0x2B
+#define LED1VAL         0x2C
+#define ALED1VAL        0x2D
+#define LED2_ALED2VAL   0x2E
+#define LED1_ALED1VAL   0x2F
 #define DIAG            0x30
 // End of Read only registers
 
-#define PRPCOUNT        0x1D                            //Value of PRPCOUNT must be in the range of 800 to 64000
-#define PRP             ((AFECLK/PRF)-1)                // for 100HZ - 39999
+#define PRPCOUNT        0x1D
+#define PRP             ((AFECLK/PRF)-1)                // for 100HZ - 39999 
 
 #define DELTA           (((PRP+1)*DUTYCYCLE)/100)       // for 100HZ - 8000
 #define CONV_DELTA      ((PRP+1)/4)                     // for 100HZ - 10000
@@ -344,3 +343,4 @@ void Set_UCB1_SPI(void);
 void AFE44xx_Read_All_Regs(unsigned long AFE44xxeg_buf[]);
 void AFE44xx_PowerOn_Init(void);
 
+#endif /*_AFE44x0_H_*/
