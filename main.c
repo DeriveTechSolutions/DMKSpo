@@ -98,6 +98,11 @@ void main(void)
                     afe44xx_data_ready = true;
                     //send_data(IRtemp);
                     //send_string("\r\n");
+                    if(IRtemp == 2096921) // To check if Finger is inserted into the probe
+                    {
+                        send_string("Insert Finger!!!");
+                        send_string("\r\n");
+                    }
             }
 
             if(afe44xx_data_ready == true)
