@@ -7,7 +7,6 @@
 #ifndef SPO2_H_
 #define SPO2_H_
 
-
 #include <msp430.h>
 #include "device.h"
 #include <driverlib.h>
@@ -16,57 +15,60 @@
 #include "types.h"
 #include "gpio.h"
 #include "stdint.h"
-#include "UART.h"
 #include "HAL_MACROS.h"
 #include "HAL_UCS.h"
 #include "HAL_PMM.h"
+#include "uart_driverlib_spo2.h"
 
+/*******************************************************************
+ * MACRO for Port Pins
+ *******************************************************************/
+#define DRDY                      GPIO_PORT_P2, GPIO_PIN6
+#define START                     GPIO_PORT_P1, GPIO_PIN3
+#define PWDN                      GPIO_PORT_P1, GPIO_PIN2
+#define DIAG_END                  GPIO_PORT_P5, GPIO_PIN7
+#define LED_ALM                   GPIO_PORT_P2, GPIO_PIN1
+#define PD_ALM                    GPIO_PORT_P2, GPIO_PIN4
+#define CS0                       GPIO_PORT_P4, GPIO_PIN0
+#define MOSI                      GPIO_PORT_P4, GPIO_PIN1
+#define MISO                      GPIO_PORT_P4, GPIO_PIN2
+#define SCK                       GPIO_PORT_P4, GPIO_PIN3
 
-#define DRDY                        GPIO_PORT_P2, GPIO_PIN6
-#define START                       GPIO_PORT_P1, GPIO_PIN3
-#define PWDN                        GPIO_PORT_P1, GPIO_PIN2
-#define DIAG_END                    GPIO_PORT_P5, GPIO_PIN7
-#define LED_ALM                     GPIO_PORT_P2, GPIO_PIN1
-#define PD_ALM                      GPIO_PORT_P2, GPIO_PIN4
-#define CS0                         GPIO_PORT_P4, GPIO_PIN0
-#define MOSI                        GPIO_PORT_P4, GPIO_PIN1
-#define MISO                        GPIO_PORT_P4, GPIO_PIN2
-#define SCK                         GPIO_PORT_P4, GPIO_PIN3
-
-#define SET_SPI_B1_ALL_4PINS        GPIO_PORT_P4, GPIO_PIN0 + GPIO_PIN1 + GPIO_PIN2 + GPIO_PIN3
-#define ALL_P2_AS_INPUT_PINS        GPIO_PORT_P2, GPIO_PIN1 + GPIO_PIN4 + GPIO_PIN6
+#define SET_SPI_B1_ALL_4PINS      GPIO_PORT_P4, GPIO_PIN0 + GPIO_PIN1 + GPIO_PIN2 + GPIO_PIN3
+#define ALL_P2_AS_INPUT_PINS      GPIO_PORT_P2, GPIO_PIN1 + GPIO_PIN4 + GPIO_PIN6
 
 /*******************************************************************
  * Macros
  *******************************************************************/
-#define SPICLK          2000000
-#define FS              25        //sampling frequency
-#define BUFFER_SIZE     (FS*4)
-#define MA4_SIZE        4             // DONOT CHANGE
+#define SPICLK        2000000
+#define FS            25                            //sampling frequency
+#define BUFFER_SIZE   (FS*4)
+#define MA4_SIZE      4                             // DONOT CHANGE
 #define min(x,y) ((x) < (y) ? (x) : (y))
-#define false           0
-#define true            1
-#define DELAY_COUNT     2
+#define false         0
+#define true          1
+#define DELAY_COUNT   2
+
 /********************************************************************
  * Global Variables
  ********************************************************************/
-volatile int drdy_trigger;
-volatile int afe44xx_data_ready;
-unsigned long IRtemp, REDtemp;
-static  int32_t an_x[ BUFFER_SIZE];
-static  int32_t an_y[ BUFFER_SIZE];
-volatile int8_t n_buffer_count;
-int data, j, I, L;
-int dec;
-signed long seegtemp, seegtemp2;
+static int Pulse_Rate_previous;
+static volatile int DRDY_trigger;
+static volatile int afe44xx_data_ready;
+static unsigned long IRtemp, REDtemp, IR_Data;
+static int32_t an_x[ BUFFER_SIZE];
+static int32_t an_y[ BUFFER_SIZE];
+static volatile int8_t n_buffer_count;
+static int data, dec;
+static signed long seegtemp, seegtemp2;
 
-int32_t n_spo2;                 //SPO2 value
-int8_t ch_spo2_valid;           //indicator to show if the SPO2 calculation is valid
-int32_t n_heart_rate;           //heart rate value
-int8_t  ch_hr_valid;            //indicator to show if the heart rate calculation is valid
-uint16_t aun_ir_buffer[100];    //infrared LED sensor data
-uint16_t aun_red_buffer[100];   //red LED sensor data
-int status_initMaster;          // SPI Master Initialization: Success=1, Failure=0
+static int32_t n_spo2;                 // SPO2 value
+static int8_t ch_spo2_valid;           // Indicates SPO2 calculation is valid
+static int32_t n_heart_rate;           // Heart rate value
+static int8_t  ch_hr_valid;            // Indicates heart rate calculation is valid
+static uint16_t aun_ir_buffer[100];    // Infrared LED sensor data
+static uint16_t aun_red_buffer[100];   // Red LED sensor data
+static int status_initMaster;          // SPI Master Initialization: Success=1, Failure=0
 
 // CONTROL0 - Write Only register
 #define CONTROL0        0x00    // Configure AFE software and count timer reset, diagnostics enable, and SPI read functions
@@ -114,11 +116,11 @@ int status_initMaster;          // SPI Master Initialization: Success=1, Failure
  ***************************************************************************************/
 void clock_config_16(void);
 void estimate_spo2(uint16_t *pun_ir_buffer, int32_t n_ir_buffer_length, uint16_t *pun_red_buffer, int32_t *pn_spo2, int8_t *pch_spo2_valid, int32_t *pn_heart_rate, int8_t *pch_hr_valid);
-void find_peak( int32_t *pn_locs, int32_t *n_npks,  int32_t  *pn_x, int32_t n_size, int32_t n_min_height, int32_t n_min_distance, int32_t n_max_num );
-void find_peak_above( int32_t *pn_locs, int32_t *n_npks,  int32_t  *pn_x, int32_t n_size, int32_t n_min_height );
+void find_peak(int32_t *pn_locs, int32_t *n_npks,  int32_t  *pn_x, int32_t n_size, int32_t n_min_height, int32_t n_min_distance, int32_t n_max_num );
+void find_peak_above(int32_t *pn_locs, int32_t *n_npks,  int32_t  *pn_x, int32_t n_size, int32_t n_min_height );
 void remove_close_peaks(int32_t *pn_locs, int32_t *pn_npks, int32_t *pn_x, int32_t n_min_distance);
-void sort_ascend(int32_t  *pn_x, int32_t n_size);
-void sort_indices_descend(  int32_t  *pn_x, int32_t *pn_indx, int32_t n_size);
+void sort_ascend(int32_t *pn_x, int32_t n_size);
+void sort_indices_descend(int32_t  *pn_x, int32_t *pn_indx, int32_t n_size);
 void Init_AFE44xx_Resource(void);
 void afe44xxInit (void);
 void AFE44x0_Reg_Write (unsigned char reg_address, unsigned long data);
@@ -135,17 +137,12 @@ void Set_GPIO(void);
 void Clear_All_SpO2_PortPins (void);
 void SPI_init(void);
 void AFE44xx_PowerOn_Init(void);
+void HR_avg(unsigned char Pulse_Rate);
 
-
-//--------------Uart---------------
-void uart_tx(unsigned char data);
-char uart_rx();
-void receive_string();
-void send_string(unsigned char * str);
-unsigned long reverse(unsigned long data);
-void send_data(unsigned long data);
-void UART_strcpy(char *wholeString, char *rx_data);
-void uart_config(void);
-void send_float_data(double data);
+void Graph_SpO2_HR(void);
+void HR(void);
+void SPO2(void);
+void Graph(void);
+void Plot(char Opt);
 
 #endif /* SPO2_H_ */
