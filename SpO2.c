@@ -3,6 +3,8 @@
 #include <SpO2.h>
 
 #define __PLETH_GRAPH 10                            // Displays Pleth-Graph
+int first_reading=1;
+
 /*******************************************************************************************
  * Lookup Table for spo2
  *******************************************************************************************/
@@ -780,98 +782,84 @@ void SpO2_init (void)
  **********************************************************************/
 void Start_SpO2(void)
 {
-        while(1)
-        {
+              while(1)
+            {
+
+                    if (DRDY_trigger == 1)                        // Sets DRDY_trigger if ISR of Port_2 is served
+                    {
+                            Disable_AFE44xx_DRDY_Interrupt();
+                            Enable_AFE44x0_SPI_Read();            // Enable Reading by setting SPI_Read in CONTROL0
+                            IRtemp= AFE44x0_Reg_Read(44);         // Read IR data from LED1VAL(address: 0x2C)
+                            Enable_AFE44x0_SPI_Read();
+                            REDtemp = AFE44x0_Reg_Read(42);       // Read Red data from LED2VAL(address: 0x2A)
+                            afe44xx_data_ready = true;
 #ifdef __PLETH_GRAPH
-                if (drdy_trigger == 1)                          // Sets drdy_trigger if ISR of Port_2 is served
-                {
-                        Disable_AFE44xx_DRDY_Interrupt();
-                        Enable_AFE44x0_SPI_Read();              // Enable Reading by setting SPI_Read in CONTROL0
-                        IRtemp= AFE44x0_Reg_Read(44);           // Read IR data from LED1VAL(address: 0x2C)
-                        Enable_AFE44x0_SPI_Read();
-                        REDtemp = AFE44x0_Reg_Read(42);         // Read Red data from LED2VAL(address: 0x2A)
-                        afe44xx_data_ready = true;
-
-                        send_data(IRtemp);
-                        send_string("\r\n");
-                }
-
-                if(afe44xx_data_ready == true)
-                {
-                        afe44xx_data_ready = false;
-                        drdy_trigger = 0;
-                }
-                Enable_AFE44xx_DRDY_Interrupt();
-#else
-                if (drdy_trigger == 1)                          // Sets drdy_trigger if ISR of Port_2 is served
-                {
-                        Disable_AFE44xx_DRDY_Interrupt();
-                        Enable_AFE44x0_SPI_Read();              // Enable Reading by setting SPI_Read in CONTROL0
-                        IRtemp= AFE44x0_Reg_Read(44);           // Read IR data from LED1VAL(address: 0x2C)
-                        Enable_AFE44x0_SPI_Read();
-                        REDtemp = AFE44x0_Reg_Read(42);         // Read Red data from LED2VAL(address: 0x2A)
-                        afe44xx_data_ready = true;
-
-                        if(IRtemp == 2096921)                   // Condition for Finger not present in SpO2 Probe
-                        {
-                                send_string("Insert Finger");
-                                send_string("\r\n");
-                        }
-                }
-
-                if(afe44xx_data_ready == true)
-                {
-                        IRtemp = (unsigned long) (IRtemp<<10);
-                        seegtemp = (signed long) (IRtemp);
-                        seegtemp = (signed long) (seegtemp>>10);
-
-                        REDtemp = (unsigned long) (REDtemp<<10);
-                        seegtemp2 = (signed long) (REDtemp);
-                        seegtemp2 = (signed long) (seegtemp2>>10);
-
-                        if(dec==20)
-                        {
-                                aun_ir_buffer[n_buffer_count] = (uint16_t) (seegtemp>>4);
-                                aun_red_buffer[n_buffer_count] = (uint16_t) (seegtemp2>>4);
-                                n_buffer_count++;
-                                dec = 0;
-                        }
-                        dec++;
-
-                        if(n_buffer_count>99)
-                        {
-                                // Process the data and Calculate spo2
-                                estimate_spo2(aun_ir_buffer, 100, aun_red_buffer, &n_spo2, &ch_spo2_valid,&n_heart_rate, &ch_hr_valid);
-
-
-                                if(n_spo2 == -999 || ch_hr_valid == 0)                  // Invalid data
-                                {
-                                    send_string("Probe error!!!!");
-                                    send_string("\r\n");
-                                }
-                                else                                                    // Valid data
-                                {
-                                    send_string("\r\n");
-                                    send_string("calculating sp02...");
-                                    send_string("\r\n");
-
-                                    send_string("Sp02 : ");
-                                    send_data(n_spo2);
-                                    send_string("%");
-                                    send_string("\r\n");
-
-                                    send_string("Pulse rate :");
-                                    send_data(n_heart_rate);
-                                    send_string("\r\n");
-                               }
-                               n_buffer_count = 0;
-                        }
-                        afe44xx_data_ready = false;
-                        drdy_trigger = 0;
-                }
-                Enable_AFE44xx_DRDY_Interrupt();
+                            uart_data_send(IRtemp);
+                            uart_string("\r\n");
 #endif
-        }
+#ifndef __PLETH_GRAPH
+                            if(IRtemp == 2096921)                 // Condition for Finger not present in SpO2 Probe
+                            {
+                                uart_string("Insert Finger");
+                                uart_string("\r\n");
+                            }
+#endif
+                    }
+
+                    if(afe44xx_data_ready == true)
+                    {
+                            IRtemp = (unsigned long) (IRtemp<<10);
+                            seegtemp = (signed long) (IRtemp);
+                            seegtemp = (signed long) (seegtemp>>10);
+
+                            REDtemp = (unsigned long) (REDtemp<<10);
+                            seegtemp2 = (signed long) (REDtemp);
+                            seegtemp2 = (signed long) (seegtemp2>>10);
+
+                            if(dec==20)
+                            {
+                                    aun_ir_buffer[n_buffer_count] = (uint16_t) (seegtemp>>4);
+                                    aun_red_buffer[n_buffer_count] = (uint16_t) (seegtemp2>>4);
+                                    n_buffer_count++;
+                                    dec = 0;
+                            }
+                            dec++;
+
+                            if(n_buffer_count>99)
+                            {
+                                    estimate_spo2(aun_ir_buffer, 100, aun_red_buffer, &n_spo2, &ch_spo2_valid,&n_heart_rate, &ch_hr_valid); // Process the data and Calculate spo2
+                                    if(n_spo2 == -999)            // Invalid data
+                                    {
+#ifndef __PLETH_GRAPH
+                                        uart_string("Probe error!!!!");
+                                        uart_string("\r\n");
+#endif
+                                    }
+                                    else                          // Valid data
+                                    {
+                                        HR_avg(n_heart_rate);
+#ifndef __PLETH_GRAPH
+                                        uart_string("\r\n");
+                                        uart_string("calculating sp02...");
+                                        uart_string("\r\n");
+
+                                        uart_string("Sp02 : ");
+                                        uart_data_send(n_spo2);
+                                        uart_string("%");
+                                        uart_string("\r\n");
+
+                                        uart_string("Pulse rate :");
+                                        uart_data_send(Pulse_Rate_previous);
+                                        uart_string("\r\n");
+#endif
+                                    }
+                                    n_buffer_count = 0;
+                            }
+                            afe44xx_data_ready = false;
+                            DRDY_trigger = 0;
+                    }
+                    Enable_AFE44xx_DRDY_Interrupt();
+            }
 }
 
 /**************************************************************
@@ -919,6 +907,39 @@ void Clear_All_SpO2_PortPins (void)
     GPIO_setOutputLowOnPin(CS0);                                   // P4.0 (CS0) = 0
     GPIO_setOutputLowOnPin(DIAG_END);                              // P5.7 (DIAG_END) = 0
 }
+
+/*********************************************************************
+* HR_avg
+* -> Heart Rate Averaging
+* -> Function Parameters: Pulse Rate
+* -> Return Type: void
+**********************************************************************/
+void HR_avg(unsigned char Pulse_Rate)
+{
+    unsigned char hr_temp;
+    hr_temp = 0;
+    hr_temp = Pulse_Rate;
+    if (first_reading==1)
+    {
+        Pulse_Rate_previous = hr_temp;
+        first_reading = 2;
+    }
+    else if (first_reading==2)
+    {
+        if (hr_temp > Pulse_Rate_previous)
+        {
+            hr_temp = Pulse_Rate_previous + 1;
+            Pulse_Rate_previous = hr_temp;
+        }
+        else if (hr_temp < Pulse_Rate_previous)
+        {
+            hr_temp = Pulse_Rate_previous - 1;
+            Pulse_Rate_previous = hr_temp;
+        }
+    }
+
+}
+
 
 /*************************************************************************
  * Data Ready Interrupt Service Routine (P2.6)
